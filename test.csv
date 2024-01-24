@@ -1,0 +1,4 @@
+name,weight,age,gender
+string,int,int,string
+yash,100,18,M
+nayana,40,50,F
