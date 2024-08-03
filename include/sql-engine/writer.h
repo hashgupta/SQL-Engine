@@ -5,6 +5,13 @@
 #include <vector>
 #include "reader.h"
 
+struct DataItemVisitor {
+    public:
+    std::string operator()(const std::string str) const;
+    std::string operator()(const int int_val) const;
+    std::string operator()(const bool bool_val) const;
+};
+
 class Writer {
     std::string filename;
     std::vector<std::string> data_types;

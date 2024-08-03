@@ -21,7 +21,11 @@ Token Parser::consume(){
     return m_tokens.at(m_index++);
 };
 
-std::optional<Token> Parser::try_consume(TokenType type, const std::string& err_msg){
+void Parser::skip(int num_tokens) {
+    m_index += num_tokens;
+}
+
+Token Parser::try_consume(TokenType type, const std::string& err_msg){
     if (peek().has_value() && peek().value().type == type) {
         return consume();
     }
@@ -46,7 +50,7 @@ std::optional<NodeExpr*> Parser::parse_expr(int min_prec = 0, bool expect_bool =
     if (!term_lhs.has_value()) {
         return {};
     }
-    auto expr_lhs = this->m_allocator->alloc<NodeExpr>();
+    auto expr_lhs = this->m_allocator->emplace<NodeExpr>(term_lhs.value());
     expr_lhs->expr = term_lhs.value();
 
     while (true) {
@@ -71,36 +75,44 @@ std::optional<NodeExpr*> Parser::parse_expr(int min_prec = 0, bool expect_bool =
             exit(EXIT_FAILURE);
         }
         
-        auto bin_expr = m_allocator->alloc<NodeBinExpr>();
-        auto bool_expr = m_allocator->alloc<NodeBoolExpr>();
+        auto bin_expr = m_allocator->emplace<NodeBinExpr>();
+        auto bool_expr = m_allocator->emplace<NodeBoolExpr>();
 
-        auto expr_lhs2 = m_allocator->alloc<NodeExpr>();
-        expr_lhs2->expr = expr_lhs->expr;
+
+        auto expr_lhs2 = m_allocator->emplace<NodeExpr>(expr_lhs->expr);
 
         bool is_bool = false;
         
         if (op.type == TokenType::plus) {
-            auto add = m_allocator->alloc<NodeBinExprAdd>();
+            auto add = m_allocator->emplace<NodeBinary>();
+            add->type = NodeBinary::op::ADD;
             add->lhs = expr_lhs2;
             add->rhs = expr_rhs.value();
+            
             bin_expr->var = add;
         }
         else if (op.type == TokenType::star) {
-            auto multi = m_allocator->alloc<NodeBinExprMulti>();
+            auto multi = m_allocator->emplace<NodeBinary>();
+            multi->type = NodeBinary::op::MUL;
             multi->lhs = expr_lhs2;
             multi->rhs = expr_rhs.value();
+
             bin_expr->var = multi;
         }
         else if (op.type == TokenType::minus) {
-            auto sub = m_allocator->alloc<NodeBinExprSub>();
+            auto sub = m_allocator->emplace<NodeBinary>();
+            sub->type = NodeBinary::op::SUB;
             sub->lhs = expr_lhs2;
             sub->rhs = expr_rhs.value();
+            
             bin_expr->var = sub;
         }
         else if (op.type == TokenType::fslash) {
-            auto div = m_allocator->alloc<NodeBinExprDiv>();
+            auto div = m_allocator->emplace<NodeBinary>();
+            div->type = NodeBinary::op::DIV;
             div->lhs = expr_lhs2;
             div->rhs = expr_rhs.value();
+            
             bin_expr->var = div;
         } else {
             is_bool = true;
@@ -109,33 +121,37 @@ std::optional<NodeExpr*> Parser::parse_expr(int min_prec = 0, bool expect_bool =
         
         
         if (op.type == TokenType::gt) {
-            auto gt = m_allocator->alloc<NodeBoolExprGT>();
+            auto gt = m_allocator->emplace<NodeBoolComparator>();
+            gt->type = NodeBoolComparator::op::GT;
             gt->lhs = expr_lhs2;
             gt->rhs = expr_rhs.value();
             bool_expr->var = gt;
         } else if (op.type == TokenType::gte) {
-            auto gte = m_allocator->alloc<NodeBoolExprGTE>();
+            auto gte = m_allocator->emplace<NodeBoolComparator>();
+            gte->type = NodeBoolComparator::op::GTE;
             gte->lhs = expr_lhs2;
             gte->rhs = expr_rhs.value();
             bool_expr->var = gte;
         } else if (op.type == TokenType::lt) {
-            auto lt = m_allocator->alloc<NodeBoolExprLT>();
+            auto lt = m_allocator->emplace<NodeBoolComparator>();
+            lt->type = NodeBoolComparator::op::LT;
             lt->lhs = expr_lhs2;
             lt->rhs = expr_rhs.value();
             bool_expr->var = lt;
         } else if (op.type == TokenType::lte) {
-            auto lte = m_allocator->alloc<NodeBoolExprLTE>();
+            auto lte = m_allocator->emplace<NodeBoolComparator>();
+            lte->type = NodeBoolComparator::op::LTE;
             lte->lhs = expr_lhs2;
             lte->rhs = expr_rhs.value();
             bool_expr->var = lte;
         
         } else if (op.type == TokenType::and_) {
-            auto and_ = m_allocator->alloc<NodeBoolExprAND>();
+            auto and_ = m_allocator->emplace<NodeBoolLogicalBin>();
             and_->lhs = expr_lhs2;
             and_->rhs = expr_rhs.value();
             bool_expr->var = and_;
         } else if (op.type == TokenType::or_) {
-            auto or_ = m_allocator->alloc<NodeBoolExprOR>();
+            auto or_ = m_allocator->emplace<NodeBoolLogicalBin>();
             or_->lhs = expr_lhs2;
             or_->rhs = expr_rhs.value();
             bool_expr->var = or_;
@@ -146,7 +162,7 @@ std::optional<NodeExpr*> Parser::parse_expr(int min_prec = 0, bool expect_bool =
             }
         }
         // } else if (op.type == TokenType::not_) {
-        //     auto not_ = m_allocator->alloc<NodeBoolExprLTE>();
+        //     auto not_ = m_allocator->emplace<NodeBoolExprLTE>();
         //     not_->lhs = expr_lhs2;
         //     not_->rhs = expr_rhs.value();
         //     bool_expr->var = not_;
@@ -164,16 +180,16 @@ std::optional<NodeExpr*> Parser::parse_expr(int min_prec = 0, bool expect_bool =
 std::optional<NodeTerm*> Parser::parse_term()
 {
     if (auto int_lit = try_consume(TokenType::int_lit)) {
-        auto term_int_lit = m_allocator->alloc<NodeTermIntLit>();
+        auto term_int_lit = m_allocator->emplace<NodeTermIntLit>();
         term_int_lit->int_lit = int_lit.value();
-        auto term = m_allocator->alloc<NodeTerm>();
+        auto term = m_allocator->emplace<NodeTerm>();
         term->var = term_int_lit;
         return term;
     }
     else if (auto ident = try_consume(TokenType::ident)) {
-        auto expr_ident = m_allocator->alloc<NodeTermIdent>();
+        auto expr_ident = m_allocator->emplace<NodeTermIdent>();
         expr_ident->ident = ident.value();
-        auto term = m_allocator->alloc<NodeTerm>();
+        auto term = m_allocator->emplace<NodeTerm>();
         term->var = expr_ident;
         return term;
     }
@@ -184,9 +200,9 @@ std::optional<NodeTerm*> Parser::parse_term()
             exit(EXIT_FAILURE);
         }
         try_consume(TokenType::close_paren, "Expected `)`");
-        auto term_paren = m_allocator->alloc<NodeTermParen>();
+        auto term_paren = m_allocator->emplace<NodeTermParen>();
         term_paren->expr = expr.value();
-        auto term = m_allocator->alloc<NodeTerm>();
+        auto term = m_allocator->emplace<NodeTerm>();
         term->var = term_paren;
         return term;
     }
@@ -199,19 +215,19 @@ std::optional<NodeStmt*> Parser::parse_stmt()
 {
 
     if (peek().has_value() && peek().value().type == TokenType::select) {
-        consume();
-        auto stmt_select = m_allocator->alloc<NodeStmtSelect>();
+        skip();
+        auto stmt_select = m_allocator->emplace<NodeStmtSelect>();
         stmt_select->view_columns = std::vector<NodeExpr*>();
 
         while (true) {
             if (auto expression = parse_expr()) {
 
-                auto expr_ident = m_allocator->alloc<NodeExpr>();
+                auto expr_ident = m_allocator->emplace<NodeExpr>();
                 expr_ident = expression.value();
                 stmt_select->view_columns.push_back(expr_ident);
             }
             if (peek().has_value() && peek().value().type == TokenType::comma) {
-                consume();
+                skip();
             } else {
                 break;
             }
@@ -220,14 +236,12 @@ std::optional<NodeStmt*> Parser::parse_stmt()
         
         try_consume(TokenType::from, "Expected `from`");
         
-        auto ident_token = try_consume(TokenType::ident, "Expected Table Name");
-        auto table = m_allocator->alloc<NodeTermIdent>();
-        table->ident = ident_token.value();
+        Token ident_token = try_consume(TokenType::ident, "Expected Table Name");
         
-        stmt_select->table = table;
+        stmt_select->table = ident_token.force_value();
 
         if (peek().has_value() && peek().value().type == TokenType::where) {
-            consume();
+            skip();
             std::optional<NodeExpr *> expression = parse_expr();
             if (expression.has_value()) {
                 stmt_select->where = expression;
@@ -237,29 +251,66 @@ std::optional<NodeStmt*> Parser::parse_stmt()
         
         try_consume(TokenType::semi, "Expected `;`");
         
-        auto stmt = m_allocator->alloc<NodeStmt>();
+        auto stmt = m_allocator->emplace<NodeStmt>();
         stmt->var = stmt_select;
         return stmt;
     } else if (peek().has_value() && peek().value().type == TokenType::delete_) {
-        consume();
-        auto stmt_delete = m_allocator->alloc<NodeStmtDelete>();
+        skip();
+        auto stmt_delete = m_allocator->emplace<NodeStmtDelete>();
         try_consume(TokenType::from, "Expected `from`");
+        
         auto ident_token = try_consume(TokenType::ident, "Expected Table Name");
-        auto table = m_allocator->alloc<NodeTermIdent>();
-        table->ident = ident_token.value();
-        stmt_delete->table = table;
+        
+        stmt_delete->table = ident_token.force_value();
+        
         if (peek().has_value() && peek().value().type == TokenType::where) {
-            consume();
+            skip();
             std::optional<NodeExpr *> expression = parse_expr();
             if (expression.has_value()) {
-                stmt_delete->condition = expression;
+                stmt_delete->where = expression;
             }
         }
         try_consume(TokenType::semi, "Expected `;`");
-        auto stmt = m_allocator->alloc<NodeStmt>();
+        auto stmt = m_allocator->emplace<NodeStmt>();
         stmt->var = stmt_delete;
         return stmt;
+    
     } else if (peek().has_value() && peek().value().type == TokenType::update_) {
+        skip();
+        auto stmt_update = m_allocator->emplace<NodeStmtUpdate>();
+        auto ident_token = try_consume(TokenType::ident, "Expected Table Name");
+        
+        stmt_update->table = ident_token.force_value();
+
+        while (true) {
+            Token col_name = try_consume(TokenType::ident, "Expected Column Name");
+            
+            try_consume(TokenType::equal, "Expected `=`");
+            
+            Token new_value = try_consume(TokenType::ident, "Expected Column Value");
+            
+            stmt_update->new_column_values[col_name.force_value()] = new_value.force_value();
+            
+            if (peek().has_value() && peek().value().type == TokenType::comma) {
+                skip();
+            } else {
+                break;
+            }
+        }
+
+
+
+        if (peek().has_value() && peek().value().type == TokenType::where) {
+            skip();
+            std::optional<NodeExpr *> expression = parse_expr();
+            if (expression.has_value()) {
+                stmt_update->where = expression.value();
+            }
+        }
+        try_consume(TokenType::semi, "Expected `;`");
+
+
+        
         return {};
     } else {
         return {};

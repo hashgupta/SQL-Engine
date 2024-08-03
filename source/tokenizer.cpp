@@ -84,59 +84,61 @@ std::vector<Token> Tokenizer::tokenize() {
             buf.clear();
         }
         else if (peek().value() == '(') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::open_paren });
         }
         else if (peek().value() == ')') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::close_paren });
         }
         else if (peek().value() == '>') {
             if (peek(1).value() == '=') {
-                consume();
-                consume();
-                tokens.push_back({ .type = TokenType::gte, .value = "gte" });
+                skip(2);
+                tokens.push_back({ .type = TokenType::gte });
             } else {
-                consume();
-                tokens.push_back({ .type = TokenType::gt, .value = "gt" });
+                skip();
+                tokens.push_back({ .type = TokenType::gt});
             }
         }
         else if (peek().value() == '<') {
             if (peek(1).value() == '=') {
-                consume();
-                consume();
-                tokens.push_back({ .type = TokenType::lte, .value = "lte" });
+                skip(2);
+                tokens.push_back({ .type = TokenType::lte });
             } else {
-                consume();
-                tokens.push_back({ .type = TokenType::lt, .value = "lt" });
+                skip();
+                tokens.push_back({ .type = TokenType::lt});
             }
         }
         else if (peek().value() == ';') {
-            consume();
-            tokens.push_back({ .type = TokenType::semi, .value = "semi" });
+            skip();
+            tokens.push_back({ .type = TokenType::semi });
+        }
+        else if (peek().value() == '=') {
+            skip();
+            tokens.push_back({ .type = TokenType::equal});
         }
         else if (peek().value() == '+') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::plus });
         }
         else if (peek().value() == '*') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::star });
         }
         else if (peek().value() == '-') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::minus });
         }
         else if (peek().value() == '/') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::fslash });
         }
         else if (peek().value() == ',') {
-            consume();
+            skip();
             tokens.push_back({ .type = TokenType::comma });
         }
         else if (std::isspace(peek().value())) {
-            consume();
+            skip();
         }
         else {
             std::cerr << "You messed up!" << std::endl;
@@ -157,9 +159,13 @@ std::optional<char> Tokenizer::peek(int offset) const
     }
 };
 
-inline char Tokenizer::consume()
+char Tokenizer::consume()
 {
     return m_src.at(m_index++);
 };
 
+void Tokenizer::skip(int length)
+{
+    m_index += length;
+};
 

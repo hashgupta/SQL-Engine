@@ -5,22 +5,27 @@
 #include <string>
 #include <variant>
 
-Writer::Writer(std::string filename_) : filename(std::move(filename_)){};
+std::string DataItemVisitor::operator()(const std::string str) const {
+  return str;
+};
 
-std::string Writer::convert_to_string(DataItem item) {
-  if (auto* v = std::get_if<std::string>(&item.item)) {
-    return *v;
-  } else if (auto* v = std::get_if<int>(&item.item)) {
-    return std::to_string(*v);
-  } else if (auto* v = std::get_if<bool>(&item.item)) {
-    if (*v) {
+std::string DataItemVisitor::operator()(const int int_val) const {
+  return std::to_string(int_val);
+};
+
+std::string DataItemVisitor::operator()(const bool bool_val) const {
+  if (bool_val) {
       return "True";
     } else {
       return "False";
     }
-  } else {
-    assert(false);
-  }
+};
+
+Writer::Writer(std::string filename_) : filename(std::move(filename_)){};
+
+std::string Writer::convert_to_string(DataItem item) {
+  DataItemVisitor visitor;
+  return std::visit(visitor, item.item);
 }
 
 void Writer::write_data_to_file(std::vector<std::vector<DataItem>> data) {
@@ -33,4 +38,6 @@ void Writer::write_data_to_file(std::vector<std::vector<DataItem>> data) {
     }
     stream << output + "\n";
   }
+
+  stream.close();
 }

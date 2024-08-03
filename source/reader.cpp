@@ -2,8 +2,56 @@
 #include <sstream>
 #include <fstream>
 
-Reader::Reader(std::string filename_)
-    : filename(std::move(filename_)), data_types(NULL) {
+std::vector<DataItem> process_row(std::vector<std::string> values, std::vector<std::string> data_types) {
+    std::vector<DataItem> row;
+    for (int i = 0; i < values.size(); i++) {
+            
+        DataItem item;
+        
+        if (data_types[i] == "string") { // String
+            
+            item.item = values[i];
+        
+        } else if (data_types[i] == "bool") { // Bool
+
+            // refactor into a dictionary mapping
+            
+            if (values[i] == "True") {
+                
+                item.item = true;
+            
+            } else if (values[i] == "False") {
+                
+                item.item = false;
+            
+            } else {
+                
+                std::cout << "Expected Boolean data" << std::endl;
+                exit(EXIT_FAILURE);
+            
+            }
+        
+        } else if (data_types[i] == "int") { // Int
+            
+            item.item = stoi(values[i]);
+        
+        } else {
+            
+            std::cout << "Invalid Type: " << data_types[i] << std::endl;
+            exit(EXIT_FAILURE);
+        
+        }
+        row.push_back(std::move(item));
+        
+    }
+    return row;
+    
+}
+
+Reader::Reader(std::string filename_) {
+    filename = std::move(filename_);
+    stream = std::ifstream(filename, std::ifstream::in);
+    data_types = split_next_row(this->readline(stream));
 }
 
 std::string Reader::readline(std::ifstream &stream) {
@@ -40,61 +88,19 @@ std::vector<std::vector<DataItem>> Reader::read_rows(std::ifstream &stream) {
     
     for(auto element : lines) {
         std::vector<std::string> split_row = this->split_next_row(element);
-        std::vector<DataItem> items;
-        
+
         auto types = this->data_types;
-        
-        for (int i = 0; i < split_row.size(); i++) {
-            
-            DataItem item;
-            
-            if (types[i] == "string") { // String
-                
-                item.item = split_row[i];
-            
-            } else if (types[i] == "bool") { // Bool
-                
-                if (split_row[i] == "True") {
-                    
-                    item.item = true;
-                
-                } else if (split_row[i] == "False") {
-                    
-                    item.item = false;
-                
-                } else {
-                    
-                    std::cout << "Expected Boolean data" << std::endl;
-                    exit(EXIT_FAILURE);
-                
-                }
-            
-            } else if (types[i] == "int") { // Int
-                
-                item.item = stoi(split_row[i]);
-            
-            } else {
-                
-                std::cout << "Invalid Type: " << types[i] << std::endl;
-                exit(EXIT_FAILURE);
-            
-            }
-            items.push_back(item);
-            
-        }
-        output.push_back(items);
+        auto row = process_row(split_row, types);
+        output.push_back(row);
     }
     return output;
 }
-Data Reader::get_data() {
+Data Reader::read_data() {
     Data new_data;
-    std::ifstream stream(filename, std::ifstream::in);
     
     auto line = this->readline(stream);
     
     new_data.column_names = split_next_row(line);
-
-    this->data_types = split_next_row(this->readline(stream));
     
     new_data.rows = this->read_rows(stream);
     

@@ -4,8 +4,11 @@
 #include <vector>
 #include <iostream>
 #include <sql-engine/tokenizer.h>
+#include <sql-engine/reader.h>
 #include <optional>
 #include <variant>
+#include <map>
+
 
 struct NodeTermIntLit {
     Token int_lit;
@@ -23,66 +26,35 @@ struct NodeTermParen {
     NodeExpr* expr;
 };
 
-struct NodeBinExprAdd {
+struct NodeBinary {
     NodeExpr* lhs;
     NodeExpr* rhs;
+    enum op {ADD, SUB, DIV, MUL} type;
 };
 
-struct NodeBinExprMulti {
+struct NodeBoolComparator {
     NodeExpr* lhs;
     NodeExpr* rhs;
+    enum op {GT, GTE, LT, LTE} type;
 };
 
-struct NodeBinExprSub {
+struct NodeBoolLogicalBin {
     NodeExpr* lhs;
     NodeExpr* rhs;
+    enum op {AND, OR} type;
 };
 
-struct NodeBinExprDiv {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprGT {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprLT {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprGTE {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprLTE {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprAND {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprOR {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBoolExprNOT {
+struct NodeBoolLogicalUnary {
     NodeExpr* expr;
+    enum op {NOT} type;
 };
 
 struct NodeBinExpr {
-    std::variant<NodeBinExprAdd*, NodeBinExprMulti*, NodeBinExprSub*, NodeBinExprDiv*> var;
+    std::variant<NodeBinary*> var;
 };
 
 struct NodeBoolExpr {
-    std::variant<NodeBoolExprGT*, NodeBoolExprLT*, NodeBoolExprGTE*, NodeBoolExprLTE*, NodeBoolExprAND*, NodeBoolExprOR*, NodeBoolExprNOT*> var;
+    std::variant<NodeBoolComparator*, NodeBoolLogicalBin*, NodeBoolLogicalUnary*> var;
 };
 
 struct NodeTerm {
@@ -94,24 +66,25 @@ struct NodeExpr {
 };
 
 struct NodeStmtSelect {
-    //std::vector<NodeExpr*> columns;
     std::vector<NodeExpr*> view_columns;
-    NodeTermIdent* table;
+    std::string table;
     std::optional<NodeExpr*> where;
     std::optional<NodeTermIdent*> order_by;
 };
 
 struct NodeStmtUpdate {
-    std::vector<NodeExpr*> columns;
-    NodeTermIdent* table;
+    NodeExpr* where;
+    std::string table;
+    //TODO: Change the value of this map to DataItem later
+    std::map<std::string, std::string> new_column_values;
 
 };
 
 
 
 struct NodeStmtDelete {
-    NodeTermIdent* table;
-    std::optional<NodeExpr*> condition;
+    std::string table;
+    std::optional<NodeExpr*> where;
 };
 
 struct NodeStmt {
@@ -133,7 +106,9 @@ class Parser {
 
     Token consume();
 
-    inline std::optional<Token> try_consume(TokenType type, const std::string& err_msg);
+    inline void skip(int num_tokens = 1);
+
+    inline Token try_consume(TokenType type, const std::string& err_msg);
 
     inline std::optional<Token> try_consume(TokenType type);
 

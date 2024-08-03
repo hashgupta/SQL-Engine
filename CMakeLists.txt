@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.14...3.22)
 
 # ---- Project ----
+# set(CMAKE_CXX_COMPILER  "/usr/bin/clang++")
 
 # Note: update this to your new project's name and version
 project(
@@ -8,6 +9,7 @@ project(
   VERSION 1.0
   LANGUAGES CXX
 )
+set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
 
 # ---- Include guards ----
 
@@ -46,6 +48,7 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/
 # target: add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME} ${headers} ${sources})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 # being a cross-platform target, we enforce standards conformance on MSVC
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")

@@ -1,0 +1,4 @@
+add float/double type
+add join, order-by, etc.
+finish update/delete/insert statements
+
